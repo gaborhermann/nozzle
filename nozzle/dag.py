@@ -1,40 +1,43 @@
 
+class CyclicDagError(Exception):
+    pass
+
+
 class Dag:
     def __init__(self, id):
         self.id = id
         self.ops = []
 
-    def depends_on(self, upstream, downstream):
-        self.dependencies[downstream] += upstream
-
     def add_op(self, op):
         self.ops.append(op)
 
-    def is_there_cycle(self):
-        s = []
-        discovered = [False] * len(self.ops)
+    def topological_sort(self):
+        """
+        Kahn's algorithm based on Wikipedia: https://en.wikipedia.org/wiki/Topological_sorting
+        """
+        ops = self.ops.copy()
 
-        while True:
-            try:
-                next_index = discovered.index(False)
-            except ValueError:
-                # everything is discovered, there's no cycle
-                return False
+        downstream_ops = _build_downstream_op_lists(ops)
+        num_upstream_ops = [len(op.upstream_ops) for op in ops]
 
-            op = self.ops[next_index]
-            s.append(op)
-            # print(f"DFS {op.idx}")
+        # Empty list that will contain the sorted elements
+        topological_order = []
+        # Set of all nodes with no incoming edge
+        ops_without_deps = set(idx for idx, op in enumerate(ops)
+                if not op.upstream_ops)
+        while ops_without_deps:
+            op = ops_without_deps.pop()
+            topological_order.append(op)
+            for d in downstream_ops[op]:
+                num_upstream_ops[d] -= 1 # remove edge from graph
+                if num_upstream_ops[d] <= 0:
+                    ops_without_deps.add(d)
 
-            while s:
-                # print([x.idx for x in s])
-                v = s.pop()
-                if not discovered[v.idx]:
-                    discovered[v.idx] = True
-                    for w in v.dependencies:
-                        if w.idx == op.idx:
-                            # discovered a cycle
-                            return True
-                        s.append(w)
+        if any(n != 0 for n in num_upstream_ops):
+            raise CyclicDagError("There is a cycle in the DAG and shouldn't be "
+                                 "(A stands for Acyclic).")
+        else:
+            return topological_order
 
 
 class Op:
@@ -42,27 +45,34 @@ class Op:
         self.function = function
         self.dag = dag
 
-        self.dependencies = []
+        self.upstream_ops = []
         self.idx = len(dag.ops)
         dag.add_op(self)
 
     def set_upstream(self, upstream):
-        self.dependencies.append(upstream)
+        self.upstream_ops.append(upstream)
 
     def set_downstream(self, downstream):
         downstream.set_upstream(self)
 
 
+def _build_downstream_op_lists(ops):
+    downstream_ops = [[] for _ in range(len(ops))]
+    for downstream_idx, downstream_op in enumerate(ops):
+        for upstream_op in downstream_op.upstream_ops:
+            downstream_ops[upstream_op.idx].append(downstream_idx)
+    return downstream_ops
+
+
 dag = Dag("d")
-op4 = Op(lambda: None, dag)
 op1 = Op(lambda: None, dag)
+op4 = Op(lambda: None, dag)
 op2 = Op(lambda: None, dag)
 op3 = Op(lambda: None, dag)
 
 
 op1.set_downstream(op2)
 op2.set_downstream(op3)
-op3.set_downstream(op1)
+#op3.set_downstream(op1)
 
-dag.is_there_cycle()
-
+dag.topological_sort()
