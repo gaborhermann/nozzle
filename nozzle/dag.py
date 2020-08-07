@@ -18,13 +18,15 @@ class Dag:
         ops = self.ops.copy()
 
         downstream_ops = _build_downstream_op_lists(ops)
-        num_upstream_ops = [len(op.upstream_ops) for op in ops]
+        num_upstream_ops = [len(op.upstream_indices) for op in ops]
 
         # Empty list that will contain the sorted elements
         topological_order = []
         # Set of all nodes with no incoming edge
-        ops_without_deps = set(idx for idx, op in enumerate(ops)
-                if not op.upstream_ops)
+        ops_without_deps = set(
+            idx for idx, op in enumerate(ops)
+            if not op.upstream_indices
+        )
         while ops_without_deps:
             op = ops_without_deps.pop()
             topological_order.append(op)
@@ -45,12 +47,15 @@ class Op:
         self.function = function
         self.dag = dag
 
-        self.upstream_ops = []
+        self.upstream_indices = set()
         self.idx = len(dag.ops)
         dag.add_op(self)
 
+    def upstream_ops(self):
+        return [dag.ops[idx] for idx in self.upstream_indices]
+
     def set_upstream(self, upstream):
-        self.upstream_ops.append(upstream)
+        self.upstream_indices.add(upstream.idx)
 
     def set_downstream(self, downstream):
         downstream.set_upstream(self)
@@ -59,8 +64,8 @@ class Op:
 def _build_downstream_op_lists(ops):
     downstream_ops = [[] for _ in range(len(ops))]
     for downstream_idx, downstream_op in enumerate(ops):
-        for upstream_op in downstream_op.upstream_ops:
-            downstream_ops[upstream_op.idx].append(downstream_idx)
+        for upstream_idx in downstream_op.upstream_indices:
+            downstream_ops[upstream_idx].append(downstream_idx)
     return downstream_ops
 
 
