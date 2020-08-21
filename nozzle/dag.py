@@ -84,22 +84,21 @@ class Operator:
         Executes a Python callable
 
     :param python_callable: A reference to an object that is callable
-    :type python_callable: python callable
-    :param op_kwargs: a dictionary of keyword arguments that will get unpacked
-        in your function
-    :type op_kwargs: dict
-    :param op_args: a list of positional arguments that will get unpacked when
+    :param Dag dag: Dag of operator
+    :param str op_id: Identifier of operator
+    :param list op_args: a list of positional arguments that will get unpacked when
         calling your callable
-    :type op_args: list
+    :param dict op_kwargs: a dictionary of keyword arguments that will get unpacked
+        in your function
     """
-    def __init__(self, python_callable, dag, op_args=None, op_kwargs=None):
+    def __init__(self, python_callable, dag, op_id=None, op_args=None, op_kwargs=None):
         self.python_callable = python_callable
         self.dag = dag
-
         self._upstream_indices = set()
         self._idx = len(dag._ops)
-        self.args = op_args if op_args else []
-        self.kwargs = op_kwargs if op_kwargs else dict()
+        self.args = op_args or []
+        self.kwargs = op_kwargs or dict()
+        self.op_id = op_id or f'#{self._idx}'
         dag._add_op(self)
 
     def set_upstream(self, operator_or_operator_list: Union['Operator', Sequence['Operator']]) -> None:

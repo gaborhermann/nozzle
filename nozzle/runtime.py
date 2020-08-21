@@ -62,9 +62,9 @@ def _worker(task_queue, done_queue):
     """
     for op in iter(task_queue.get, "STOP"):
         try:
-            logging.info(f"{current_process().name} running Operator {op._idx}")
+            logging.info(f"{current_process().name} running Operator {op.op_id}")
             op.python_callable(*op.args, **op.kwargs)
-            logging.info(f"{current_process().name} finished Operator {op._idx}")
+            logging.info(f"{current_process().name} finished Operator {op.op_id}")
             done_queue.put(op)
         except Exception as e:
             import sys
@@ -106,15 +106,15 @@ def run_dag(dag, num_of_processes):
             # handle exceptions in task execution
             if isinstance(task_output, _OperatorFailedMessage):
                 op_failed = task_output
-                logging.error(f"Stopping execution because operator {op_failed.op._idx} failed")
+                logging.error(f"Stopping execution because operator {op_failed.op.op_id} failed")
                 raise OperatorFailedError(
-                    f"Operator with index {op_failed.op._idx} failed. "
+                    f"Operator with index {op_failed.op.op_id} failed. "
                     f"Cause traceback:\n\n{op_failed.tb}"
                 ) from op_failed.e
 
             # operator is done
             done_op = task_output
-            logging.info(f'Operator {done_op._idx} has finished successfully.')
+            logging.info(f'Operator {done_op.op_id} has finished successfully.')
             num_ops_done += 1
 
             for d in downstream_ops[done_op._idx]:
