@@ -26,12 +26,11 @@ the most important feature of these tools. Conclusion: it's fairly easy.
 - [x] Rename Op to Operator
 - [x] Add Python docs to methods
 - [x] Add setup.py
-- [ ] Add Makefile for testing, packaging
-- [ ] Make DAGs fail
-- [ ] Add >> operator override
-- [ ] Add PythonOperator
-- [ ] Write dag tests: regular DAG, circular DAG
-- [ ] Write runtime tests: empty DAG, order with a queue, failure handling
+- [x] Add Makefile for testing, packaging
+- [x] Add >> operator override
+- [x] Add PythonOperator
+- [x] Write dag tests: regular DAG, circular DAG
+- [x] Write runtime tests: empty DAG, order with a queue, failure handling
 - [ ] Add operator ids
 - [ ] Write README
 - [ ] Write blogpost with examples (linear DAG, empty DAG)

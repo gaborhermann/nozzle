@@ -15,10 +15,31 @@
 
 import unittest
 
+from nozzle.dag import Dag, Operator, CyclicDagError
+
 
 class DagTests(unittest.TestCase):
-    def test_something(self):
-        self.assertEqual(True, False)
+
+    def test_create_regular_dag_with_dependencies(self):
+        dag = Dag("d")
+        op1 = Operator(lambda: None, dag)
+        op2 = Operator(lambda: None, dag)
+        op3 = Operator(lambda: None, dag)
+        op4 = Operator(lambda: None, dag)
+        op1 >> [op2, op3] >> op4
+        self.assertEqual(set(), op1._upstream_indices)
+        self.assertEqual({op1._idx}, op2._upstream_indices)
+        self.assertEqual({op1._idx}, op3._upstream_indices)
+        self.assertEqual({op2._idx, op3._idx}, op4._upstream_indices)
+
+    def test_create_circular_dag(self):
+        with self.assertRaises(CyclicDagError):
+            dag = Dag("d")
+            op1 = Operator(lambda: None, dag)
+            op2 = Operator(lambda: None, dag)
+            op3 = Operator(lambda: None, dag)
+            op1 >> op2 >> op3
+            op3 >> op1
 
 
 if __name__ == '__main__':

@@ -4,4 +4,5 @@ venv
 
 build
 dist
-nozzle.egg-info
+*.egg-info
+*/__pycache__

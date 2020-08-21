@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from collections import Iterable
+from collections.abc import Iterable
 from typing import Union, Sequence
 
 
@@ -29,26 +29,26 @@ class Dag:
     """
     def __init__(self, id):
         self.id = id
-        self.ops = []
+        self._ops = []
 
     def _add_op(self, op):
-        self.ops.append(op)
+        self._ops.append(op)
 
     def _downstream_ops(self):
-        downstream_ops = [[] for _ in range(len(self.ops))]
-        for downstream_idx, downstream_op in enumerate(self.ops):
-            for upstream_idx in downstream_op.upstream_indices:
+        downstream_ops = [[] for _ in range(len(self._ops))]
+        for downstream_idx, downstream_op in enumerate(self._ops):
+            for upstream_idx in downstream_op._upstream_indices:
                 downstream_ops[upstream_idx].append(downstream_idx)
         return downstream_ops
 
     def _ops_without_upstream(self):
         return set(
-            idx for idx, op in enumerate(self.ops)
-            if not op.upstream_indices
+            idx for idx, op in enumerate(self._ops)
+            if not op._upstream_indices
         )
 
     def _num_upstream_ops(self):
-        return [len(op.upstream_indices) for op in self.ops]
+        return [len(op._upstream_indices) for op in self._ops]
 
     def topological_sort(self):
         """
@@ -96,8 +96,8 @@ class Operator:
         self.python_callable = python_callable
         self.dag = dag
 
-        self.upstream_indices = set()
-        self.idx = len(dag.ops)
+        self._upstream_indices = set()
+        self._idx = len(dag._ops)
         self.args = op_args if op_args else []
         self.kwargs = op_kwargs if op_kwargs else dict()
         dag._add_op(self)
@@ -107,8 +107,8 @@ class Operator:
         Set an operator or an operator list to be directly downstream from the current
         operator.
         """
-        self.upstream_indices.update([
-            upstream.idx
+        self._upstream_indices.update([
+            upstream._idx
             for upstream in _make_singleton_if_not_list(operator_or_operator_list)
         ])
         # inefficient, but working way to check for cycles at every added edge
@@ -156,14 +156,3 @@ def _make_singleton_if_not_list(obj_or_list):
             if isinstance(obj_or_list, Iterable)
             else [obj_or_list])
 
-
-# dag = Dag("d")
-# op1 = Operator(lambda: None, dag)
-# op4 = Operator(lambda: None, dag)
-# op2 = Operator(lambda: None, dag)
-# op3 = Operator(lambda: None, dag)
-#
-#
-# op1.set_downstream(op2)
-# op2.set_downstream(op3)
-# op3.set_downstream(op1)

@@ -17,9 +17,7 @@ from multiprocessing import Process, Queue, current_process
 import multiprocessing
 import logging
 
-import time
-
-from dag import Dag, Operator
+from nozzle.dag import Dag
 
 
 def _enforce_fork_start_method():
@@ -64,9 +62,9 @@ def _worker(task_queue, done_queue):
     """
     for op in iter(task_queue.get, "STOP"):
         try:
-            logging.info(f"{current_process().name} running Operator {op.idx}")
+            logging.info(f"{current_process().name} running Operator {op._idx}")
             op.python_callable(*op.args, **op.kwargs)
-            logging.info(f"{current_process().name} finished Operator {op.idx}")
+            logging.info(f"{current_process().name} finished Operator {op._idx}")
             done_queue.put(op)
         except Exception as e:
             import sys
@@ -87,8 +85,8 @@ def run_dag(dag, num_of_processes):
     task_output_queue = Queue()
 
     def schedule_op(idx):
-        logging.info(f"Scheduled to run operator {dag.ops[idx]}")
-        task_queue.put(dag.ops[idx])
+        logging.info(f"Scheduled to run operator {dag._ops[idx]}")
+        task_queue.put(dag._ops[idx])
 
     for idx in dag._ops_without_upstream():
         schedule_op(idx)
@@ -102,24 +100,24 @@ def run_dag(dag, num_of_processes):
         for i in range(num_of_processes):
             Process(target=_worker, args=(task_queue, task_output_queue)).start()
 
-        while num_ops_done < len(dag.ops):
+        while num_ops_done < len(dag._ops):
             task_output = task_output_queue.get()
 
             # handle exceptions in task execution
             if isinstance(task_output, _OperatorFailedMessage):
                 op_failed = task_output
-                logging.error(f"Stopping execution because operator {op_failed.op.idx} failed")
+                logging.error(f"Stopping execution because operator {op_failed.op._idx} failed")
                 raise OperatorFailedError(
-                    f"Operator with index {op_failed.op.idx} failed. "
+                    f"Operator with index {op_failed.op._idx} failed. "
                     f"Cause traceback:\n\n{op_failed.tb}"
                 ) from op_failed.e
 
             # operator is done
             done_op = task_output
-            logging.info(f'Operator {done_op.idx} has finished successfully.')
+            logging.info(f'Operator {done_op._idx} has finished successfully.')
             num_ops_done += 1
 
-            for d in downstream_ops[done_op.idx]:
+            for d in downstream_ops[done_op._idx]:
                 num_upstream_ops[d] -= 1  # remove edge from graph
                 if num_upstream_ops[d] <= 0:
                     # submit downstream op, because all dependencies are done
@@ -128,26 +126,3 @@ def run_dag(dag, num_of_processes):
         # stop processes
         for i in range(num_of_processes):
             task_queue.put('STOP')
-
-
-def run_id(id):
-    print(f"Started {id}")
-    time.sleep(0.2)
-    if id == 2:
-        print("GONNA FAIL!")
-        raise ValueError("ERROR!!!!!")
-    print(f"Done {id}")
-    return 0
-
-
-dag = Dag("d")
-
-op1 = Operator(run_id, dag, op_args=[1])
-op2 = Operator(run_id, dag, op_args=[2])
-op3 = Operator(run_id, dag, op_args=[3])
-op4 = Operator(run_id, dag, op_args=[4])
-op5 = Operator(run_id, dag, op_args=[5])
-
-op1 >> [op2, op3, op4] >> op5
-
-run_dag(dag, 4)
