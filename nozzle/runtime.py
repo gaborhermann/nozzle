@@ -108,7 +108,7 @@ def run_dag(dag, num_of_processes):
                 op_failed = task_output
                 logging.error(f"Stopping execution because operator {op_failed.op.op_id} failed")
                 raise OperatorFailedError(
-                    f"Operator with index {op_failed.op.op_id} failed. "
+                    f"Operator with id {op_failed.op.op_id} failed. "
                     f"Cause traceback:\n\n{op_failed.tb}"
                 ) from op_failed.e
 

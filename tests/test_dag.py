@@ -22,10 +22,10 @@ class DagTests(unittest.TestCase):
 
     def test_create_regular_dag_with_dependencies(self):
         with Dag("d") as dag:
-            op1 = Operator(lambda: None)
-            op2 = Operator(lambda: None)
-            op3 = Operator(lambda: None)
-            op4 = Operator(lambda: None)
+            op1 = Operator(_no_do_fn)
+            op2 = Operator(_no_do_fn)
+            op3 = Operator(_no_do_fn)
+            op4 = Operator(_no_do_fn)
             op1 >> [op2, op3] >> op4
             self.assertEqual(set(), op1._upstream_indices)
             self.assertEqual({op1._idx}, op2._upstream_indices)
@@ -35,11 +35,14 @@ class DagTests(unittest.TestCase):
     def test_create_circular_dag(self):
         with self.assertRaises(CyclicDagError):
             with Dag("d") as dag:
-                op1 = Operator(lambda: None)
-                op2 = Operator(lambda: None)
-                op3 = Operator(lambda: None)
+                op1 = Operator(_no_do_fn)
+                op2 = Operator(_no_do_fn)
+                op3 = Operator(_no_do_fn)
                 op1 >> op2 >> op3
                 op3 >> op1
+
+
+def _no_do_fn(): pass
 
 
 if __name__ == '__main__':

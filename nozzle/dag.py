@@ -14,6 +14,8 @@
 # limitations under the License.
 from collections.abc import Iterable
 from typing import Union, Sequence
+import pickle
+from io import BytesIO
 
 
 class CyclicDagError(Exception):
@@ -100,6 +102,9 @@ class Operator:
         in your function
     """
     def __init__(self, python_callable, dag=None, op_id=None, op_args=None, op_kwargs=None):
+        _verify_picklable(python_callable)
+        _verify_picklable(op_args)
+        _verify_picklable(op_kwargs)
         self.python_callable = python_callable
         self.dag = dag or _current_dag_context()
         self._upstream_indices = set()
@@ -172,3 +177,8 @@ def _current_dag_context():
         raise RuntimeError("Cannot create operator without Dag context or Dag specified.")
     current_dag = _dag_context_stack[-1]
     return current_dag
+
+
+def _verify_picklable(obj):
+    with BytesIO() as bytes_io:
+        pickle.dump(obj, bytes_io)
