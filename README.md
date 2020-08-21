@@ -31,7 +31,8 @@ the most important feature of these tools. Conclusion: it's fairly easy.
 - [x] Add PythonOperator
 - [x] Write dag tests: regular DAG, circular DAG
 - [x] Write runtime tests: empty DAG, order with a queue, failure handling
-- [ ] Add operator ids
+- [x] Add operator ids
+- [ ] Add context managed Dag
 - [ ] Write README
 - [ ] Write blogpost with examples (linear DAG, empty DAG)
 - [ ] Add DAG based on datestamp

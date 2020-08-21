@@ -29,14 +29,13 @@ class RuntimeTests(unittest.TestCase):
         run_dag(dag, 2)
 
     def test_execution_order(self):
-        dag = Dag("d")
+        with Dag("d") as dag:
+            op1 = Operator(run_id, op_args=[1])
+            op2 = Operator(run_id, op_args=[2])
+            op3 = Operator(run_id, op_args=[3])
+            op4 = Operator(run_id, op_args=[4])
 
-        op1 = Operator(run_id, dag, op_args=[1])
-        op2 = Operator(run_id, dag, op_args=[2])
-        op3 = Operator(run_id, dag, op_args=[3])
-        op4 = Operator(run_id, dag, op_args=[4])
-
-        op1 >> [op2, op3] >> op4
+            op1 >> [op2, op3] >> op4
 
         start_time = time.time()
         run_dag(dag, 4)
@@ -47,15 +46,14 @@ class RuntimeTests(unittest.TestCase):
         self.assertLess(running_time, sleep_time * 4)
 
     def test_failing_dag(self):
-        dag = Dag("d")
+        with Dag("d") as dag:
+            op1 = Operator(error_run_id, op_args=[1])
+            op2 = Operator(error_run_id, op_args=[2])
+            op3 = Operator(error_run_id, op_args=[3])
+            op4 = Operator(error_run_id, op_args=[4])
+            op5 = Operator(error_run_id, op_args=[5])
 
-        op1 = Operator(error_run_id, dag, op_args=[1])
-        op2 = Operator(error_run_id, dag, op_args=[2])
-        op3 = Operator(error_run_id, dag, op_args=[3])
-        op4 = Operator(error_run_id, dag, op_args=[4])
-        op5 = Operator(error_run_id, dag, op_args=[5])
-
-        op1 >> [op2, op3, op4] >> op5
+            op1 >> [op2, op3, op4] >> op5
 
         with self.assertRaises(OperatorFailedError):
             run_dag(dag, 4)

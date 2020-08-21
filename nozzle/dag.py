@@ -75,6 +75,14 @@ class Dag:
         else:
             return topological_order
 
+    # Managing context
+    def __enter__(self):
+        _dag_context_stack.append(self)
+        return self
+
+    def __exit__(self, type, value, traceback):
+        _dag_context_stack.pop()
+
 
 # Heavily inspired by Airflow PythonOperator and BaseOperator (i.e. code taken from):
 # https://github.com/apache/airflow/blob/fdd68ec653fb9ec4d4c99fac51a6250dea4d7b2c/airflow/operators/python.py
@@ -91,15 +99,15 @@ class Operator:
     :param dict op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function
     """
-    def __init__(self, python_callable, dag, op_id=None, op_args=None, op_kwargs=None):
+    def __init__(self, python_callable, dag=None, op_id=None, op_args=None, op_kwargs=None):
         self.python_callable = python_callable
-        self.dag = dag
+        self.dag = dag or _current_dag_context()
         self._upstream_indices = set()
-        self._idx = len(dag._ops)
+        self._idx = len(self.dag._ops)
         self.args = op_args or []
         self.kwargs = op_kwargs or dict()
         self.op_id = op_id or f'#{self._idx}'
-        dag._add_op(self)
+        self.dag._add_op(self)
 
     def set_upstream(self, operator_or_operator_list: Union['Operator', Sequence['Operator']]) -> None:
         """
@@ -155,3 +163,12 @@ def _make_singleton_if_not_list(obj_or_list):
             if isinstance(obj_or_list, Iterable)
             else [obj_or_list])
 
+
+_dag_context_stack = []
+
+
+def _current_dag_context():
+    if not _dag_context_stack:
+        raise RuntimeError("Cannot create operator without Dag context or Dag specified.")
+    current_dag = _dag_context_stack[-1]
+    return current_dag
