@@ -19,10 +19,10 @@ import logging
 
 import time
 
-from dag import Dag, Op
+from dag import Dag, Operator
 
 
-def enforce_fork_start_method():
+def _enforce_fork_start_method():
     # We need to make sure we use "fork" because "spawn" is the default in Python 3.8.
     try:
         multiprocessing.set_start_method("fork")
@@ -35,10 +35,13 @@ def enforce_fork_start_method():
                                f"it's already set to '{start_method}'.") from e
 
 
-enforce_fork_start_method()
+_enforce_fork_start_method()
 
 
-class OperatorFailedMessage:
+class _OperatorFailedMessage:
+    """
+    Internal message object sent back to main process.
+    """
     def __init__(self, op, e, tb):
         self.op = op
         self.e = e
@@ -46,26 +49,37 @@ class OperatorFailedMessage:
 
 
 class OperatorFailedError(Exception):
+    """
+    Happens when an Operator fails while running a Dag.
+    """
     pass
 
 
-def worker(task_queue, done_queue):
+def _worker(task_queue, done_queue):
+    """
+    Worker process definition
+    :param task_queue Queue:
+    :param done_queue Queue:
+    :return:
+    """
     for op in iter(task_queue.get, "STOP"):
         try:
-            print(f"{current_process().name} running op {op.idx}")
-            op.function(*op.args, **op.kwargs)
-            print(f"{current_process().name} finished op {op.idx}")
+            logging.info(f"{current_process().name} running Operator {op.idx}")
+            op.python_callable(*op.args, **op.kwargs)
+            logging.info(f"{current_process().name} finished Operator {op.idx}")
             done_queue.put(op)
         except Exception as e:
             import sys
             import traceback
+            # we cannot pickle traceback object, so we send it back to main process in string
             tb_str = "".join(traceback.format_exception(*sys.exc_info()))
-            done_queue.put(OperatorFailedMessage(op, e, tb_str))
+            done_queue.put(_OperatorFailedMessage(op, e, tb_str))
 
 
 def run_dag(dag, num_of_processes):
     """
     Executes dag by forking `num_of_processes` processes respecting dependencies.
+
     :param Dag dag: Dag to execute
     :param int num_of_processes: number of :py:class:`Process`es to run
     """
@@ -76,23 +90,23 @@ def run_dag(dag, num_of_processes):
         logging.info(f"Scheduled to run operator {dag.ops[idx]}")
         task_queue.put(dag.ops[idx])
 
-    for idx in dag.ops_without_deps():
+    for idx in dag._ops_without_upstream():
         schedule_op(idx)
 
-    downstream_ops = dag.downstream_ops()
-    num_upstream_ops = dag.num_upstream_ops()
+    downstream_ops = dag._downstream_ops()
+    num_upstream_ops = dag._num_upstream_ops()
     num_ops_done = 0
 
     try:
         # start processes
         for i in range(num_of_processes):
-            Process(target=worker, args=(task_queue, task_output_queue)).start()
+            Process(target=_worker, args=(task_queue, task_output_queue)).start()
 
         while num_ops_done < len(dag.ops):
             task_output = task_output_queue.get()
 
             # handle exceptions in task execution
-            if isinstance(task_output, OperatorFailedMessage):
+            if isinstance(task_output, _OperatorFailedMessage):
                 op_failed = task_output
                 logging.error(f"Stopping execution because operator {op_failed.op.idx} failed")
                 raise OperatorFailedError(
@@ -128,18 +142,12 @@ def run_id(id):
 
 dag = Dag("d")
 
-op1 = Op(run_id, dag, args=[1])
-op2 = Op(run_id, dag, args=[2])
-op3 = Op(run_id, dag, args=[3])
-op4 = Op(run_id, dag, args=[4])
-op5 = Op(run_id, dag, args=[5])
+op1 = Operator(run_id, dag, op_args=[1])
+op2 = Operator(run_id, dag, op_args=[2])
+op3 = Operator(run_id, dag, op_args=[3])
+op4 = Operator(run_id, dag, op_args=[4])
+op5 = Operator(run_id, dag, op_args=[5])
 
-op1.set_downstream(op2)
-op1.set_downstream(op3)
-op1.set_downstream(op4)
-
-op2.set_downstream(op5)
-op3.set_downstream(op5)
-op4.set_downstream(op5)
+op1 >> [op2, op3, op4] >> op5
 
 run_dag(dag, 4)

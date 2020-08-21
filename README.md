@@ -4,9 +4,9 @@
 (Source: Wikipedia https://en.wikipedia.org/wiki/Nozzle)
 
 ## TODOs
-- [ ] Add Apache License
-- [ ] Rename Op to Operator
-- [ ] Add Python docs to methods
+- [x] Add Apache License
+- [x] Rename Op to Operator
+- [x] Add Python docs to methods
 - [ ] Add setup.py
 - [ ] Add Makefile for testing, packaging
 - [ ] Make DAGs fail
